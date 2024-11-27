@@ -1,0 +1,23 @@
+[package]
+name = "revise_cross_parameters"
+version = "0.1.0"
+authors = ["Edoardo Signorini <mail@edoars.me>"]
+edition = "2021"
+description = """
+Library for estimating a forgery attack on CROSS involving the fixed-weight distribution of the second challenge
+"""
+license = "Apache-2.0"
+readme = "README.md"
+
+[lib]
+bench = false
+
+[workspace]
+members = ["cli"]
+default-members = [".", "cli"]
+
+[dependencies]
+indicatif = {version = "0.17.9", features = ["rayon"]}
+num-traits = "0.2.19"
+rayon = "1.10.0"
+rug = "1.26.1"

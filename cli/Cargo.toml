@@ -1,0 +1,16 @@
+[package]
+name = "revise_cross_parameters_cli"
+version = "0.1.0"
+authors = ["Edoardo Signorini <mail@edoars.me>"]
+edition = "2021"
+description = "CLI utils for revise-cross-parameters crate"
+license = "Apache-2.0"
+readme = "../README.md"
+
+[dependencies]
+clap = { version = "4.5.21", features = ["derive"] }
+rayon = "1.10.0"
+
+[dependencies.revise_cross_parameters]
+version = "0.1.0"
+path = ".."
