@@ -127,7 +127,7 @@ fn prob_b_new(t: i64, ts: i64, w: i64, p: i64) -> (i64, Float) {
 
             let mut inner_sum = Float::with_val(PRECISION, 0);
             let ws_start = max(0, aa - j);
-            let ws_end = min(t - j, aa);
+            let ws_end = min(t - j, w);
 
             for ws in ws_start..=ws_end {
                 let term = binom(t - j, ws) * binom(j, aa - ws) * binom(j, w - ws);
