@@ -14,3 +14,10 @@ rayon = "1.10.0"
 [dependencies.revise_cross_parameters]
 version = "0.1.0"
 path = ".."
+features = ["rug"]
+
+[features]
+inexact = ["revise_cross_parameters/inexact"]
+
+# experimental features
+nightly-float = ["revise_cross_parameters/nightly-float"]

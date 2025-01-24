@@ -1,5 +1,11 @@
 use clap::Parser;
 use rayon::ThreadPoolBuilder;
+#[cfg(feature = "nightly-float")]
+use revise_cross_parameters::float::F128Num as Float;
+#[cfg(all(not(feature = "nightly-float"), feature = "inexact"))]
+use revise_cross_parameters::float::F64Num as Float;
+#[cfg(all(not(feature = "nightly-float"), not(feature = "inexact")))]
+use revise_cross_parameters::float::RugNum as Float;
 use revise_cross_parameters::{attack, attack_new};
 
 #[derive(Parser, Debug)]
@@ -37,18 +43,15 @@ fn main() {
     }
 
     println!("Estimating complexity of original attack...");
-    let (ts, comp_cross) = attack(args.t, args.w, args.p, args.quiet);
-    println!(
-        "Original attack has a cost of {:.2} bits",
-        comp_cross.to_f32()
-    );
+    let (ts, comp_cross) = attack::<Float>(args.t, args.w, args.p, args.quiet);
+    println!("Original attack has a cost of {:.2} bits", comp_cross);
     println!("Original attack is optimized for t* = {}", ts);
 
     println!();
 
     println!("Estimating complexity of our attack...");
-    let (ts_our, aa, comp_our) = attack_new(args.t, args.w, args.p, args.quiet);
-    println!("Our attack has a cost of {:.2} bits", comp_our.to_f32());
+    let (ts_our, aa, comp_our) = attack_new::<Float>(args.t, args.w, args.p, args.quiet);
+    println!("Our attack has a cost of {:.2} bits", comp_our);
     println!(
         "Our attack is optimized for t* = {} and alpha = {}",
         ts_our, aa

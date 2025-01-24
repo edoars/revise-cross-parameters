@@ -1,99 +1,100 @@
+#![cfg_attr(feature = "nightly-float", feature(f128))]
+use float::Float;
 use indicatif::{ParallelProgressIterator, ProgressStyle};
 use rayon::prelude::*;
-use rug::ops::Pow;
-use rug::Float;
-use std::{cmp::max, cmp::min};
+use std::cmp::{max, min};
 
-const PRECISION: u32 = 32; // Adjust precision as needed
+pub mod float;
 
 fn get_default_pb_style(quiet: bool) -> ProgressStyle {
-    let progress_style = match quiet {
+    match quiet {
         false => ProgressStyle::default_bar()
             .template("[{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len}")
             .unwrap()
             .progress_chars("#>-"),
         true => ProgressStyle::default_bar().template("").unwrap(),
-    };
-
-    progress_style
+    }
 }
 
 // Helper function to compute binomial coefficient using high precision
 #[inline]
-fn binom(n: i64, k: i64) -> Float {
+pub fn binom<T: Float>(n: i64, k: i64) -> T {
     if k < 0 || k > n {
-        return Float::with_val(PRECISION, 0);
+        return T::zero();
     }
 
-    let k = min(k, n - k);
-    let mut result = Float::with_val(PRECISION, 1);
+    let k = T::from(min(k, n - k));
+    let mut r = T::one();
+    let mut d = T::one();
+    let mut n = T::from(n);
+    let one = T::one();
 
-    for i in 0..k {
-        result *= Float::with_val(PRECISION, n - i);
-        result /= Float::with_val(PRECISION, i + 1);
-    }
-
-    result
-}
-
-#[inline]
-fn prob_beta(t: i64, ts: i64, p: i64) -> Float {
-    let mut sum = Float::with_val(PRECISION, 0);
-    let p_minus_one = Float::with_val(PRECISION, p - 1);
-    let one = Float::with_val(PRECISION, 1);
-    let inv_p_minus_one = Float::with_val(PRECISION, &one / &p_minus_one);
-
-    for j in ts..=t {
-        let binom_tj = binom(t, j);
-        let inv_p_power = inv_p_minus_one.clone().pow(j);
-        let comp_power = (one.clone() - &inv_p_minus_one).pow(t - j);
-        sum += binom_tj * inv_p_power * comp_power;
-    }
-
-    sum
-}
-
-#[inline]
-fn prob_b(t: i64, ts: i64, w: i64, p: i64) -> Float {
-    let mut outer_sum = Float::with_val(PRECISION, 0);
-    let beta_prob = prob_beta(t, ts, p);
-    let p_minus_one = Float::with_val(PRECISION, p - 1);
-    let one = Float::with_val(PRECISION, 1);
-    let inv_p_minus_one = Float::with_val(PRECISION, &one / &p_minus_one);
-    let binom_t_w_squared = binom(t, w).pow(2);
-
-    for j in ts..=t {
-        let binom_tj = binom(t, j);
-        let inv_p_power = inv_p_minus_one.clone().pow(j);
-        let comp_power = (one.clone() - &inv_p_minus_one).pow(t - j);
-
-        let mut inner_sum = Float::with_val(PRECISION, 0);
-        let ws_start = max(0, j - (t - w));
-        let ws_end = min(j, w);
-
-        for ws in ws_start..=ws_end {
-            let term = binom(j, ws).pow(2) * binom(t - j, w - ws);
-            inner_sum += term;
+    loop {
+        if d > k {
+            break;
         }
 
-        inner_sum /= &binom_t_w_squared;
-        outer_sum += binom_tj * inv_p_power * comp_power * inner_sum;
+        r.mul_div_assign(&n, &d);
+        n -= &one;
+        d += &one;
     }
 
-    outer_sum / beta_prob
+    r
 }
 
 #[inline]
-pub fn attack(t: i64, w: i64, p: i64, quiet: bool) -> (i64, Float) {
+pub fn prob_beta<T: Float>(t: i64, ts: i64, p: i64) -> T {
+    let p_minus_one = T::from(p - 1);
+    let inv_p_minus_one = T::one() / p_minus_one;
+    let one_minus_inv_p_minus_one = T::one() - &inv_p_minus_one;
+
+    (ts..=t)
+        .map(|j| {
+            binom::<T>(t, j)
+                * inv_p_minus_one.pow(j as u32)
+                * one_minus_inv_p_minus_one.pow((t - j) as u32)
+        })
+        .sum()
+}
+
+#[inline]
+pub fn prob_b<T: Float>(t: i64, ts: i64, w: i64, p: i64) -> T {
+    let p_minus_one = T::from(p - 1);
+    let inv_p_minus_one = T::one() / p_minus_one;
+    let one_minus_inv_p_minus_one = T::one() - &inv_p_minus_one;
+    let binom_t_w_squared = binom::<T>(t, w).pow(2);
+
+    let sum: T = (ts..=t)
+        .map(|j| {
+            binom::<T>(t, j)
+                * inv_p_minus_one.pow(j as u32)
+                * one_minus_inv_p_minus_one.pow((t - j) as u32)
+                * (max(0, j - (t - w))..=min(j, w))
+                    .map(|ws| binom::<T>(j, ws).pow(2) * binom::<T>(t - j, w - ws))
+                    .sum::<T>()
+                / &binom_t_w_squared
+        })
+        .sum();
+
+    let result = sum / prob_beta::<T>(t, ts, p);
+    if result.is_nan() {
+        // TODO: warn of NaN
+        T::zero()
+    } else {
+        result
+    }
+}
+
+#[inline]
+pub fn attack<T: Float>(t: i64, w: i64, p: i64, quiet: bool) -> (i64, f64) {
     let result = (0..=u16::try_from(t).unwrap())
         .into_par_iter()
         .progress_with_style(get_default_pb_style(quiet))
         .map(|ts| {
-            let beta_prob = prob_beta(t, ts as i64, p);
-            let b_prob = prob_b(t, ts as i64, w, p);
+            let beta_prob = prob_beta::<T>(t, ts as i64, p);
+            let b_prob = prob_b::<T>(t, ts as i64, w, p);
 
-            let comp = Float::with_val(PRECISION, 1) / &beta_prob
-                + Float::with_val(PRECISION, 1) / &b_prob;
+            let comp: T = T::one() / beta_prob + T::one() / b_prob;
 
             (comp, ts)
         })
@@ -107,58 +108,54 @@ pub fn attack(t: i64, w: i64, p: i64, quiet: bool) -> (i64, Float) {
 }
 
 #[inline]
-fn prob_b_new(t: i64, ts: i64, w: i64, p: i64) -> (i64, Float) {
-    let mut max_prob = Float::with_val(PRECISION, 0);
-    let mut max_aa: i64 = 0;
+pub fn prob_b_new<T: Float>(t: i64, ts: i64, w: i64, p: i64) -> (i64, T) {
+    let p_minus_one = T::from(p - 1);
+    let inv_p_minus_one = T::one() / p_minus_one;
+    let one_minus_inv_p_minus_one = T::one() - &inv_p_minus_one;
+    let beta_prob = prob_beta::<T>(t, ts, p);
+    let binom_tw = binom::<T>(t, w);
 
-    let beta_prob = prob_beta(t, ts, p);
-    let binom_tw = binom(t, w);
-    let p_minus_one = Float::with_val(PRECISION, p - 1);
-    let one = Float::with_val(PRECISION, 1);
-    let inv_p_minus_one = Float::with_val(PRECISION, &one / &p_minus_one);
+    let result = (w..=t)
+        .map(|aa| {
+            let prob = (ts..=t)
+                .map(|j| {
+                    binom::<T>(t, j)
+                        * inv_p_minus_one.pow(j as u32)
+                        * one_minus_inv_p_minus_one.pow((t - j) as u32)
+                        * (max(0, aa - j)..=min(t - j, w))
+                            .map(|ws| {
+                                binom::<T>(t - j, ws)
+                                    * binom::<T>(j, aa - ws)
+                                    * binom::<T>(j, w - ws)
+                            })
+                            .sum::<T>()
+                })
+                .sum::<T>()
+                / binom::<T>(t, aa);
+            (aa, prob)
+        })
+        .max_by(|(_, comp_a), (_, comp_b)| comp_a.partial_cmp(comp_b).unwrap())
+        .unwrap();
 
-    for aa in w..=t {
-        let mut outer_sum = Float::with_val(PRECISION, 0);
-
-        for j in ts..=t {
-            let binom_tj = binom(t, j);
-            let inv_p_power = inv_p_minus_one.clone().pow(j);
-            let comp_power = (one.clone() - &inv_p_minus_one).pow(t - j);
-
-            let mut inner_sum = Float::with_val(PRECISION, 0);
-            let ws_start = max(0, aa - j);
-            let ws_end = min(t - j, w);
-
-            for ws in ws_start..=ws_end {
-                let term = binom(t - j, ws) * binom(j, aa - ws) * binom(j, w - ws);
-                inner_sum += term;
-            }
-
-            outer_sum += binom_tj * inv_p_power * comp_power * inner_sum
-        }
-
-        outer_sum /= binom(t, aa);
-
-        if outer_sum > max_prob {
-            max_prob = outer_sum;
-            max_aa = aa;
-        }
+    let prob = result.1 / (beta_prob * binom_tw);
+    if prob.is_nan() {
+        // TODO: warn of NaN
+        (result.0, T::zero())
+    } else {
+        (result.0, prob)
     }
-
-    (max_aa, max_prob / (beta_prob * binom_tw))
 }
 
 #[inline]
-pub fn attack_new(t: i64, w: i64, p: i64, quiet: bool) -> (i64, i64, Float) {
+pub fn attack_new<T: Float>(t: i64, w: i64, p: i64, quiet: bool) -> (i64, i64, f64) {
     let result = (0..=u16::try_from(t).unwrap())
         .into_par_iter()
         .progress_with_style(get_default_pb_style(quiet))
         .map(|ts| {
-            let beta_prob = prob_beta(t, ts as i64, p);
-            let (aa, b_prob) = prob_b_new(t, ts as i64, w, p);
+            let beta_prob = prob_beta::<T>(t, ts as i64, p);
+            let (aa, b_prob) = prob_b_new::<T>(t, ts as i64, w, p);
 
-            let comp = Float::with_val(PRECISION, 1) / &beta_prob
-                + Float::with_val(PRECISION, 1) / &b_prob;
+            let comp = T::one() / beta_prob + T::one() / b_prob;
 
             (comp, ts, aa)
         })
@@ -170,4 +167,64 @@ pub fn attack_new(t: i64, w: i64, p: i64, quiet: bool) -> (i64, i64, Float) {
     let aa = result.2;
 
     (ts as i64, aa, complog)
+}
+
+#[cfg(test)]
+mod tests {
+    macro_rules! float_test {
+        ($name:ident: $type:ty) => {
+            mod $name {
+                use crate::{float::Float, prob_b, prob_b_new, prob_beta};
+
+                #[test]
+                fn test_prob_beta() {
+                    let (p, t, _) = (127, 163, 85);
+                    let ts = 35;
+                    let prob = prob_beta::<$type>(t, ts, p);
+
+                    assert_eq!(-prob.log2().round(), 127.0);
+                }
+
+                #[test]
+                fn test_prob_b() {
+                    let (p, t, w) = (127, 163, 85);
+                    let ts = 35;
+                    let prob = prob_b::<$type>(t, ts, w, p);
+
+                    assert_eq!(-prob.log2().round(), 127.0);
+                }
+
+                #[test]
+                fn test_prob_b_new() {
+                    let (p, t, w) = (127, 252, 212);
+                    let ts = 38;
+                    let (_, prob) = prob_b_new::<$type>(t, ts, w, p);
+
+                    assert_eq!(-prob.log2().round(), 120.0);
+                }
+            }
+        };
+    }
+
+    macro_rules! tests {
+        ($(#[cfg($meta:meta)] $name:ident: $type:ty,)*) => {
+            $(
+                #[cfg($meta)]
+                float_test! { $name: $type }
+            )*
+        };
+
+        ($($name:ident: $type:ty,)*) => {
+            $(
+                float_test! { $name: $type }
+            )*
+        };
+    }
+
+    tests! {
+        #[cfg(feature = "inexact")] f64: crate::float::F64Num,
+        #[cfg(feature = "rug")] rug: crate::float::RugNum,
+        #[cfg(feature = "dashu")] dashu: crate::float::DashuNum,
+        #[cfg(feature = "nightly-float")] f128: crate::float::F128Num,
+    }
 }

@@ -17,7 +17,28 @@ members = ["cli"]
 default-members = [".", "cli"]
 
 [dependencies]
-indicatif = {version = "0.17.9", features = ["rayon"]}
+indicatif = { version = "0.17.9", features = ["rayon"] }
 num-traits = "0.2.19"
 rayon = "1.10.0"
-rug = "1.26.1"
+derive_more = { version = "1", features = ["display", "mul", "add", "sum"] }
+rug = { version = "1.26.1", optional = true }
+dashu-float = { version = "0.4.3", optional = true }
+
+[features]
+inexact = [] # use f64 for Float impl
+rug = ["dep:rug"] # use rug::Float for Float impl
+dashu = ["dep:dashu-float"] # use dashu_float::FBig for Float impl
+
+# experimental features
+nightly-float = [] # enable unstable f128 float type for Float impl
+
+[dev-dependencies]
+criterion = "0.5"
+
+[dev-dependencies.pprof]
+version = "0.14"
+features = ["criterion", "flamegraph"]
+
+[[bench]]
+name = "attacks"
+harness = false
