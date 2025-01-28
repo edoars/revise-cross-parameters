@@ -86,7 +86,7 @@ pub fn prob_b<T: Float>(t: i64, ts: i64, w: i64, p: i64) -> T {
 }
 
 #[inline]
-pub fn attack<T: Float>(t: i64, w: i64, p: i64, quiet: bool) -> (i64, f64) {
+pub fn estimate_attack<T: Float>(t: i64, w: i64, p: i64, quiet: bool) -> (i64, f64) {
     let result = (0..=u16::try_from(t).unwrap())
         .into_par_iter()
         .progress_with_style(get_default_pb_style(quiet))
@@ -147,7 +147,7 @@ pub fn prob_b_new<T: Float>(t: i64, ts: i64, w: i64, p: i64) -> (i64, T) {
 }
 
 #[inline]
-pub fn attack_new<T: Float>(t: i64, w: i64, p: i64, quiet: bool) -> (i64, i64, f64) {
+pub fn estimate_attack_new<T: Float>(t: i64, w: i64, p: i64, quiet: bool) -> (i64, i64, f64) {
     let result = (0..=u16::try_from(t).unwrap())
         .into_par_iter()
         .progress_with_style(get_default_pb_style(quiet))

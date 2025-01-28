@@ -6,7 +6,7 @@ use revise_cross_parameters::float::F128Num as Float;
 use revise_cross_parameters::float::F64Num as Float;
 #[cfg(all(not(feature = "nightly-float"), not(feature = "inexact")))]
 use revise_cross_parameters::float::RugNum as Float;
-use revise_cross_parameters::{attack, attack_new};
+use revise_cross_parameters::{estimate_attack, estimate_attack_new};
 
 #[derive(Parser, Debug)]
 #[command(version, long_about = None)]
@@ -43,14 +43,14 @@ fn main() {
     }
 
     println!("Estimating complexity of original attack...");
-    let (ts, comp_cross) = attack::<Float>(args.t, args.w, args.p, args.quiet);
+    let (ts, comp_cross) = estimate_attack::<Float>(args.t, args.w, args.p, args.quiet);
     println!("Original attack has a cost of {:.2} bits", comp_cross);
     println!("Original attack is optimized for t* = {}", ts);
 
     println!();
 
     println!("Estimating complexity of our attack...");
-    let (ts_our, aa, comp_our) = attack_new::<Float>(args.t, args.w, args.p, args.quiet);
+    let (ts_our, aa, comp_our) = estimate_attack_new::<Float>(args.t, args.w, args.p, args.quiet);
     println!("Our attack has a cost of {:.2} bits", comp_our);
     println!(
         "Our attack is optimized for t* = {} and alpha = {}",
