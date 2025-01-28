@@ -1,6 +1,14 @@
 # Revise Cross Parameters
 
-Rust library for estimating the cost of a forgery attack on CROSS involving the fixed-weight distribution of the second challenge.
+Rust library for estimating the cost of a forgery attack on CROSS involving the fixed-weight distribution of the second challenge, as detailed in [`BLPST25`](https://eprint.iacr.org/2025/127).
+
+Contributors are:
+
+- Michele Battagliola
+- Riccardo Longo
+- Federico Pintore
+- Edoardo Signorini
+- Giovanni Tognolini
 
 ## Installation
 
@@ -54,4 +62,4 @@ Options:
 
 ## Idea
 
-See [scripts/attack.ipynb](scripts/attack.ipynb) for a high-level description of the forgery.
+See [scripts/attack.ipynb](scripts/attack.ipynb) for a high-level description of the forgery and the paper for full details.
