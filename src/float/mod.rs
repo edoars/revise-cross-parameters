@@ -4,10 +4,13 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
 mod floats;
 
+/// The multiply and divide assignment operator.
 pub trait MulDivAssign<Mul = Self, Div = Self> {
+    /// Performs multiplication of `self` by `mul` and division by `div`, assigning the result to `self`.
     fn mul_div_assign(&mut self, mul: Mul, div: Div);
 }
 
+/// Generic trait for types implementing basic numeric operations.
 pub trait FloatOps<Rhs = Self, Output = Self>:
     Add<Rhs, Output = Output>
     + Sub<Rhs, Output = Output>
@@ -16,11 +19,13 @@ pub trait FloatOps<Rhs = Self, Output = Self>:
 {
 }
 
-pub trait FloaAssignOps<Rhs = Self>:
+/// Generic trait for types implementing numeric assignment operators (like `+=`).
+pub trait FloatAssignOps<Rhs = Self>:
     AddAssign<Rhs> + SubAssign<Rhs> + MulAssign<Rhs> + DivAssign<Rhs>
 {
 }
 
+/// Generic trait for high-precision float.
 pub trait Float
 where
     Self: PartialOrd
@@ -28,14 +33,19 @@ where
         + One
         + FloatOps<Self, Self>
         + for<'a> FloatOps<&'a Self, Self>
-        + for<'a> FloaAssignOps<&'a Self>
+        + for<'a> FloatAssignOps<&'a Self>
         + for<'a> MulDivAssign<&'a Self, &'a Self>
         + Sum
         + From<i64>
         + Send,
 {
+    /// Returns `self` to the power `exp`.
     fn pow(&self, exp: u32) -> Self;
+
+    /// Computes the logarithm to base 2, rounding to the nearest.
     fn log2(&self) -> f64;
+
+    /// Returns [`true`] if `self` is not a number.
     fn is_nan(&self) -> bool;
 }
 

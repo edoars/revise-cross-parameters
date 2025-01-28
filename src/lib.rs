@@ -1,3 +1,19 @@
+//! Rust crate to estimate the security of [CROSS](https://www.cross-crypto.com/)
+//! parameters, based on the results of [`BLPST25`](https://eprint.iacr.org/2025/127).
+//!
+//! It provides methods for estimating the cost of a forgery to the scheme
+//! employing the fixed-weight optimisation.
+//!
+//! # Feature flags
+//!
+//! This crate exposes a number of features for implementing the [`Float`] trait.
+//! These can be enabled or disabled as shown [in Cargo's documentation](https://doc.rust-lang.org/cargo/reference/features.html).
+//!
+//! - **inexact**: use primitive [`f64`] for [`Float`] implementation
+//! - **rug**: use [`rug::Float`](https://docs.rs/rug/latest/rug/struct.Float.html) for [`Float`] implementation
+//! - **dashu**: use [`dashu_float::FBig`](https://docs.rs/dashu-float/latest/dashu_float/struct.FBig.html) for [`Float`] implementation
+//! - **nightly-float**: enable unstable [`f128`] float type for [`Float`] implementation
+
 #![cfg_attr(feature = "nightly-float", feature(f128))]
 use float::Float;
 use indicatif::{ParallelProgressIterator, ProgressStyle};
@@ -16,7 +32,7 @@ fn get_default_pb_style(quiet: bool) -> ProgressStyle {
     }
 }
 
-// Helper function to compute binomial coefficient using high precision
+#[doc(hidden)]
 #[inline]
 pub fn binom<T: Float>(n: i64, k: i64) -> T {
     if k < 0 || k > n {
@@ -42,6 +58,7 @@ pub fn binom<T: Float>(n: i64, k: i64) -> T {
     r
 }
 
+#[doc(hidden)]
 #[inline]
 pub fn prob_beta<T: Float>(t: i64, ts: i64, p: i64) -> T {
     let p_minus_one = T::from(p - 1);
@@ -57,6 +74,7 @@ pub fn prob_beta<T: Float>(t: i64, ts: i64, p: i64) -> T {
         .sum()
 }
 
+#[doc(hidden)]
 #[inline]
 pub fn prob_b<T: Float>(t: i64, ts: i64, w: i64, p: i64) -> T {
     let p_minus_one = T::from(p - 1);
@@ -85,6 +103,16 @@ pub fn prob_b<T: Float>(t: i64, ts: i64, w: i64, p: i64) -> T {
     }
 }
 
+/// Estimate cost of original attack as described in Proposition 18 of the [CROSS specification](https://csrc.nist.gov/csrc/media/Projects/pqc-dig-sig/documents/round-1/spec-files/CROSS-spec-web.pdf) for the first round of the NIST competition.
+///
+/// Complexities are given as log2 of the estimated gate count.
+///
+/// # Arguments
+///
+/// * `t` - Number of parallel iterations.
+/// * `w` - Fixed-weight parameter.
+/// * `p` - Characteristic of the finite field. The challenge space for the first challenge has size `p-1`.
+/// * `quiet` - If [`true`] hide the progress bar.
 #[inline]
 pub fn estimate_attack<T: Float>(t: i64, w: i64, p: i64, quiet: bool) -> (i64, f64) {
     let result = (0..=u16::try_from(t).unwrap())
@@ -107,6 +135,7 @@ pub fn estimate_attack<T: Float>(t: i64, w: i64, p: i64, quiet: bool) -> (i64, f
     (ts as i64, complog)
 }
 
+#[doc(hidden)]
 #[inline]
 pub fn prob_b_new<T: Float>(t: i64, ts: i64, w: i64, p: i64) -> (i64, T) {
     let p_minus_one = T::from(p - 1);
@@ -146,6 +175,16 @@ pub fn prob_b_new<T: Float>(t: i64, ts: i64, w: i64, p: i64) -> (i64, T) {
     }
 }
 
+/// Estimate cost of new attack as described in [`BLPST25`](https://eprint.iacr.org/2025/127).
+///
+/// Complexities are given as log2 of the estimated gate count.
+///
+/// # Arguments
+///
+/// * `t` - Number of parallel iterations.
+/// * `w` - Fixed-weight parameter.
+/// * `p` - Characteristic of the finite field. The challenge space for the first challenge has size `p-1`.
+/// * `quiet` - If [`true`] hide the progress bar.
 #[inline]
 pub fn estimate_attack_new<T: Float>(t: i64, w: i64, p: i64, quiet: bool) -> (i64, i64, f64) {
     let result = (0..=u16::try_from(t).unwrap())

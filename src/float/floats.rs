@@ -1,14 +1,15 @@
-use crate::float::{FloaAssignOps, Float, FloatOps, MulDivAssign};
+use crate::float::{Float, FloatAssignOps, FloatOps, MulDivAssign};
 use derive_more::{Add, Div, Mul, Sub};
 use num_traits::{One, Zero};
 use std::iter::Sum;
 use std::ops::{AddAssign, DivAssign, MulAssign, SubAssign};
 
 macro_rules! newfloat {
-    ($name:ident, $inner:ident) => {
+    ($(#[$attr:meta])* $name:ident: $inner:ident) => {
         #[derive(Debug, PartialEq, PartialOrd, Mul, Div, Add, Sub)]
         #[mul(forward)]
         #[div(forward)]
+        $(#[$attr])*
         pub struct $name($inner);
 
         impl Sum for $name {
@@ -75,7 +76,7 @@ macro_rules! newfloat {
 
         impl FloatOps for $name {}
         impl<'a> FloatOps<&'a Self, Self> for $name {}
-        impl<'a> FloaAssignOps<&'a Self> for $name {}
+        impl<'a> FloatAssignOps<&'a Self> for $name {}
     };
 }
 
@@ -83,7 +84,10 @@ macro_rules! newfloat {
 pub(super) mod inexact {
     use super::*;
 
-    newfloat!(F64Num, f64);
+    newfloat! {
+        /// Newtype wrapper around primitive [`f64`] for [`Float`] implementation.
+        F64Num: f64
+    }
 
     impl From<i64> for F64Num {
         fn from(value: i64) -> Self {
@@ -148,10 +152,15 @@ pub(super) mod rug {
     use super::*;
     use ::rug::Float as RugFloat;
 
-    newfloat!(RugNum, RugFloat);
+    newfloat! {
+        /// Newtype wrapper around [`::rug::Float`] for [`Float`] implementation.
+        ///
+        /// Use a fixed precision of 64 significant bits for float representation.
+        RugNum: RugFloat
+    }
 
     impl RugNum {
-        const PRECISION: u32 = 32;
+        const PRECISION: u32 = 64;
     }
 
     impl From<i64> for RugNum {
@@ -219,7 +228,12 @@ pub(super) mod dashu {
     use super::*;
     type FBig = dashu_float::FBig;
 
-    newfloat!(DashuNum, FBig);
+    newfloat! {
+        /// Newtype wrapper around [`dashu_float::FBig`] for [`Float`] implementation.
+        ///
+        /// Use a fixed precision of 32 significant bits for float representation.
+        DashuNum: FBig
+    }
 
     impl DashuNum {
         const PRECISION: usize = 32;
@@ -288,7 +302,10 @@ pub(super) mod dashu {
 pub(super) mod f128 {
     use super::*;
 
-    newfloat!(F128Num, f128);
+    newfloat! {
+        /// Newtype wrapper around unstable [`prim@f128`] float type for [`Float`] implementation.
+        F128Num: f128
+    }
 
     impl From<i64> for F128Num {
         fn from(value: i64) -> Self {
